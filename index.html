@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Math Challenge - Nokia Style</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'VT323', monospace;
+            background-color: #1a1a1a;
+        }
+        .pixel-font {
+            font-family: 'Press Start 2P', cursive;
+        }
+        /* Nokia Screen Effect */
+        .nokia-screen {
+            background-color: #9bbc0f;
+            color: #0f380f;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.3);
+        }
+        .nokia-border {
+            border: 4px solid #0f380f;
+        }
+        /* Touch D-Pad styling */
+        .d-btn {
+            background: #333;
+            color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 0 #111;
+            active: translate-y-1;
+        }
+        .d-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #111;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-2 sm:p-4 text-slate-100">
+
+    <!-- Nokia Phone Container -->
+    <div id="game-container" class="w-full max-w-xl bg-slate-800 rounded-3xl p-3 sm:p-6 border-4 border-slate-600 shadow-2xl flex flex-col items-center transition-all duration-300">
+        
+        <!-- Screen Frame -->
+        <div class="w-full nokia-screen rounded-lg p-3 nokia-border flex flex-col items-center relative overflow-hidden">
+            
+            <!-- Top Status Bar -->
+            <div class="w-full flex justify-between items-center text-xs sm:text-base font-bold border-b-2 border-[#0f380f] pb-1 mb-2">
+                <span id="player-name-display">Pemain: -</span>
+                <div class="flex items-center gap-2">
+                    <span id="score-display">Soal: 0/10</span>
+                    <button id="btn-fullscreen" title="Layar Penuh / Fullscreen" class="bg-[#0f380f] text-[#9bbc0f] text-[10px] sm:text-xs px-2 py-0.5 rounded border border-[#0f380f] hover:bg-[#306230] transition">
+                        ⛶ Fullscreen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Timer & Speed Display -->
+            <div class="w-full flex justify-between items-center text-xs sm:text-sm font-bold mb-2">
+                <span id="timer-display">Waktu: 00:00</span>
+                <span id="speed-display">Laju: Normal</span>
+            </div>
+
+            <!-- Game Canvas Screen -->
+            <div class="relative w-full flex justify-center items-center">
+                <canvas id="gameCanvas" width="300" height="300" class="nokia-border bg-[#9bbc0f] w-full h-auto max-w-[400px] aspect-square object-contain"></canvas>
+
+                <!-- Start / Name Input Overlay -->
+                <div id="start-modal" class="absolute inset-0 bg-[#9bbc0f] flex flex-col justify-center items-center p-4 text-center z-10 overflow-y-auto">
+                    <h1 class="pixel-font text-base sm:text-lg text-[#0f380f] mb-3">SNAKE MATH</h1>
+                    <p class="text-xs sm:text-sm mb-3 font-bold">Ular Makan Tikus & Jawab Soal Sudut!</p>
+                    
+                    <div class="w-full max-w-[220px] mb-3">
+                        <label class="block text-xs sm:text-sm font-bold mb-1 text-left">Nama Pemain:</label>
+                        <input type="text" id="player-name-input" placeholder="Masukkan nama..." maxlength="10"
+                            class="w-full px-2 py-1 bg-[#8bac0f] border-2 border-[#0f380f] text-[#0f380f] font-bold text-center text-xs sm:text-sm outline-none uppercase rounded">
+                    </div>
+
+                    <div class="w-full max-w-[220px] mb-4">
+                        <label class="block text-xs sm:text-sm font-bold mb-1 text-left">Kecepatan Ular:</label>
+                        <select id="speed-select" class="w-full px-2 py-1 bg-[#8bac0f] border-2 border-[#0f380f] text-[#0f380f] font-bold text-xs sm:text-sm outline-none cursor-pointer rounded">
+                            <option value="150">Santai (Lambat)</option>
+                            <option value="100" selected>Normal</option>
+                            <option value="60">Cepat (Tantangan)</option>
+                        </select>
+                    </div>
+
+                    <button id="btn-start" class="pixel-font text-xs sm:text-sm bg-[#0f380f] text-[#9bbc0f] px-5 py-2.5 rounded hover:bg-[#306230] transition active:scale-95">
+                        MULAI GAME
+                    </button>
+                </div>
+
+                <!-- Math Question Overlay -->
+                <div id="quiz-modal" class="absolute inset-0 bg-[#9bbc0f] border-2 border-[#0f380f] hidden flex-col justify-between p-3 z-20 overflow-y-auto">
+                    <div class="text-center">
+                        <span class="pixel-font text-[10px] sm:text-xs bg-[#0f380f] text-[#9bbc0f] px-2 py-0.5 rounded">TANTANGAN SUDUT</span>
+                        <p id="quiz-question" class="text-sm sm:text-lg font-bold mt-2 leading-tight">Berapa besar sudut siku-siku?</p>
+                    </div>
+
+                    <div id="quiz-options" class="grid grid-cols-1 gap-1.5 my-2">
+                        <!-- Options injected by JS -->
+                    </div>
+
+                    <div id="quiz-feedback" class="text-center font-bold text-xs sm:text-sm h-5"></div>
+                </div>
+
+                <!-- Game Over / Win Overlay -->
+                <div id="gameover-modal" class="absolute inset-0 bg-[#9bbc0f] hidden flex-col justify-center items-center p-4 text-center z-30 overflow-y-auto">
+                    <h2 id="gameover-title" class="pixel-font text-sm sm:text-base text-[#0f380f] mb-2">GAME OVER</h2>
+                    <p id="gameover-msg" class="text-xs sm:text-sm font-bold mb-3">Ular menabrak dinding!</p>
+                    <div id="gameover-stats" class="text-xs sm:text-sm font-bold mb-4 bg-[#8bac0f] p-2 rounded w-full max-w-[260px] border border-[#0f380f]">
+                        <!-- Stats injected by JS -->
+                    </div>
+                    <button id="btn-restart" class="pixel-font text-xs sm:text-sm bg-[#0f380f] text-[#9bbc0f] px-4 py-2 rounded hover:bg-[#306230] transition active:scale-95">
+                        MAIN LAGI
+                    </button>
+                </div>
+            </div>
+
+            <!-- High Scores Leaderboard Footer inside screen -->
+            <div class="w-full mt-2 pt-1 border-t border-[#0f380f] text-left">
+                <div class="text-[10px] sm:text-xs font-bold flex justify-between">
+                    <span>REKAP TERCEPAT:</span>
+                    <button id="btn-clear-scores" class="underline text-[9px] sm:text-[11px]">Hapus</button>
+                </div>
+                <div id="leaderboard-list" class="text-[10px] sm:text-xs font-bold truncate">
+                    Belum ada rekor.
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls / D-Pad for Mobile, PDI & Touch Screens -->
+        <div class="mt-4 w-full flex flex-col items-center gap-1.5 touch-none">
+            <button id="btn-up" class="d-btn w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center font-bold text-xl select-none">▲</button>
+            <div class="flex gap-4">
+                <button id="btn-left" class="d-btn w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center font-bold text-xl select-none">◄</button>
+                <button id="btn-down" class="d-btn w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center font-bold text-xl select-none">▼</button>
+                <button id="btn-right" class="d-btn w-14 h-12 sm:w-16 sm:h-14 flex items-center justify-center font-bold text-xl select-none">►</button>
+            </div>
+        </div>
+
+        <p class="text-xs text-slate-400 mt-3 text-center">Gunakan tombol panah keyboard atau D-Pad layar untuk mengontrol ular.</p>
+    </div>
+
+    <script>
+        // --- CONSTANTS & GAME STATE ---
+        const CANVAS_SIZE = 300;
+        const GRID_SIZE = 15; // 20x20 grid
+        const TILE_COUNT = CANVAS_SIZE / GRID_SIZE;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Elements
+        const startModal = document.getElementById('start-modal');
+        const quizModal = document.getElementById('quiz-modal');
+        const gameoverModal = document.getElementById('gameover-modal');
+        const playerNameInput = document.getElementById('player-name-input');
+        const speedSelect = document.getElementById('speed-select');
+        const btnStart = document.getElementById('btn-start');
+        const btnRestart = document.getElementById('btn-restart');
+        const btnClearScores = document.getElementById('btn-clear-scores');
+        const btnFullscreen = document.getElementById('btn-fullscreen');
+        const gameContainer = document.getElementById('game-container');
+        
+        const playerNameDisplay = document.getElementById('player-name-display');
+        const scoreDisplay = document.getElementById('score-display');
+        const timerDisplay = document.getElementById('timer-display');
+        const speedDisplay = document.getElementById('speed-display');
+        const leaderboardList = document.getElementById('leaderboard-list');
+
+        // Game Variables
+        let snake = [];
+        let dx = GRID_SIZE;
+        let dy = 0;
+        let food = { x: 0, y: 0 };
+        let score = 0;
+        let gameInterval = null;
+        let timerInterval = null;
+        let secondsElapsed = 0;
+        let playerName = "Pemain";
+        let gameSpeed = 100;
+        let isPaused = false;
+        let currentQuestion = null;
+        let questionsAnswered = 0;
+        let leaderboard = [];
+
+        // --- MATH QUESTIONS BANK (10 Questions about Angles) ---
+        const mathQuestions = [
+            {
+                q: "Sudut yang besarnya 90° disebut sudut...",
+                options: ["Sudut Lancip", "Sudut Siku-siku", "Sudut Tumpul", "Sudut Lurus"],
+                answer: 1
+            },
+            {
+                q: "Sudut yang besarnya kurang dari 90° adalah...",
+                options: ["Sudut Refleks", "Sudut Tumpul", "Sudut Lancip", "Sudut Siku-siku"],
+                answer: 2
+            },
+            {
+                q: "Sudut yang besarnya antara 90° dan 180° adalah...",
+                options: ["Sudut Tumpul", "Sudut Lancip", "Sudut Siku-siku", "Sudut Penuh"],
+                answer: 0
+            },
+            {
+                q: "Berapa besar sudut lurus?",
+                options: ["90°", "360°", "180°", "270°"],
+                answer: 2
+            },
+            {
+                q: "Besar sudut satu putaran penuh adalah...",
+                options: ["180°", "360°", "90°", "270°"],
+                answer: 1
+            },
+            {
+                q: "Jika sebuah sudut besarnya 45°, jenis sudut tersebut adalah...",
+                options: ["Sudut Siku-siku", "Sudut Tumpul", "Sudut Lancip", "Sudut Lurus"],
+                answer: 2
+            },
+            {
+                q: "Jika sebuah sudut besarnya 135°, jenis sudut tersebut adalah...",
+                options: ["Sudut Lancip", "Sudut Tumpul", "Sudut Siku-siku", "Sudut Refleks"],
+                answer: 1
+            },
+            {
+                q: "Sudut pada jam yang menunjukkan pukul 03.00 tepat adalah...",
+                options: ["45°", "60°", "90°", "120°"],
+                answer: 2
+            },
+            {
+                q: "Sudut yang besarnya lebih dari 180° tetapi kurang dari 360° disebut...",
+                options: ["Sudut Tumpul", "Sudut Refleks", "Sudut Lancip", "Sudut Lurus"],
+                answer: 1
+            },
+            {
+                q: "Jumlah ketiga sudut dalam segitiga selalu...",
+                options: ["90°", "180°", "360°", "270°"],
+                answer: 1
+            }
+        ];
+
+        let availableQuestions = [];
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            loadLeaderboard();
+            renderLeaderboard();
+            drawEmptyBoard();
+        };
+
+        // Fullscreen Toggle logic for Smart TV / Laptop / Mobile
+        btnFullscreen.addEventListener('click', toggleFullscreen);
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                if (gameContainer.requestFullscreen) {
+                    gameContainer.requestFullscreen();
+                } else if (gameContainer.webkitRequestFullscreen) { /* Safari */
+                    gameContainer.webkitRequestFullscreen();
+                } else if (gameContainer.msRequestFullscreen) { /* IE11 */
+                    gameContainer.msRequestFullscreen();
+                }
+                btnFullscreen.textContent = "Exit Full";
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                }
+                btnFullscreen.textContent = "⛶ Fullscreen";
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                btnFullscreen.textContent = "⛶ Fullscreen";
+            }
+        });
+
+        function drawEmptyBoard() {
+            ctx.fillStyle = '#9bbc0f';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+        }
+
+        // --- GAME CONTROL FUNCTIONS ---
+        btnStart.addEventListener('click', startGame);
+        btnRestart.addEventListener('click', startGame);
+        btnClearScores.addEventListener('click', clearLeaderboard);
+
+        function startGame() {
+            const inputVal = playerNameInput.value.trim();
+            playerName = inputVal ? inputVal.toUpperCase() : "PLAYER";
+            gameSpeed = parseInt(speedSelect.value);
+
+            playerNameDisplay.textContent = `Pemain: ${playerName}`;
+            
+            // Speed label text
+            let speedText = "Normal";
+            if (gameSpeed === 150) speedText = "Santai";
+            if (gameSpeed === 60) speedText = "Cepat";
+            speedDisplay.textContent = `Laju: ${speedText}`;
+
+            // Reset States
+            snake = [
+                { x: 5 * GRID_SIZE, y: 10 * GRID_SIZE },
+                { x: 4 * GRID_SIZE, y: 10 * GRID_SIZE },
+                { x: 3 * GRID_SIZE, y: 10 * GRID_SIZE }
+            ];
+            dx = GRID_SIZE;
+            dy = 0;
+            score = 0;
+            questionsAnswered = 0;
+            secondsElapsed = 0;
+            isPaused = false;
+
+            // Reset Questions pool
+            availableQuestions = [...mathQuestions];
+
+            scoreDisplay.textContent = `Soal: 0/10`;
+            timerDisplay.textContent = `Waktu: 00:00`;
+
+            startModal.classList.add('hidden');
+            gameoverModal.classList.add('hidden');
+            quizModal.classList.add('hidden');
+
+            generateFood();
+
+            // Start Timers
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+            gameInterval = setInterval(gameLoop, gameSpeed);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            if (!isPaused) {
+                secondsElapsed++;
+                const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+                const secs = String(secondsElapsed % 60).padStart(2, '0');
+                timerDisplay.textContent = `Waktu: ${mins}:${secs}`;
+            }
+        }
+
+        function gameLoop() {
+            if (isPaused) return;
+
+            if (checkCollision()) {
+                handleGameOver(false, "Ular menabrak dinding / tubuh sendiri!");
+                return;
+            }
+
+            moveSnake();
+
+            // Check Food Eaten
+            if (snake[0].x === food.x && snake[0].y === food.y) {
+                isPaused = true;
+                triggerQuiz();
+            } else {
+                draw();
+            }
+        }
+
+        function moveSnake() {
+            const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+            snake.unshift(head);
+            snake.pop();
+        }
+
+        function draw() {
+            // Clear canvas
+            ctx.fillStyle = '#9bbc0f';
+            ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+            // Draw Mouse (Food)
+            drawMouse(food.x, food.y);
+
+            // Draw Snake (Realistic Body)
+            drawSnake();
+        }
+
+        // Draw Animated Realistic Mouse
+        function drawMouse(x, y) {
+            const centerX = x + GRID_SIZE / 2;
+            const centerY = y + GRID_SIZE / 2;
+
+            ctx.save();
+            ctx.fillStyle = '#0f380f';
+            
+            // Tail
+            ctx.beginPath();
+            ctx.moveTo(centerX - 4, centerY + 2);
+            ctx.quadraticCurveTo(centerX - 8, centerY + 6, centerX - 6, centerY + 8);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = '#0f380f';
+            ctx.stroke();
+
+            // Body
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, 6, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ears
+            ctx.beginPath();
+            ctx.arc(centerX - 2, centerY - 4, 2.5, 0, Math.PI * 2);
+            ctx.arc(centerX + 2, centerY - 4, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Snout/Nose
+            ctx.beginPath();
+            ctx.arc(centerX + 5, centerY, 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes
+            ctx.fillStyle = '#9bbc0f';
+            ctx.beginPath();
+            ctx.arc(centerX + 2, centerY - 1.5, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Draw Realistic Snake with Curved Joints, Eyes, and Tongue
+        function drawSnake() {
+            if (snake.length === 0) return;
+
+            ctx.save();
+            ctx.strokeStyle = '#0f380f';
+            ctx.fillStyle = '#0f380f';
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            // Draw Body Segment Connections & Tapering Thickness
+            for (let i = snake.length - 1; i >= 0; i--) {
+                const part = snake[i];
+                const cx = part.x + GRID_SIZE / 2;
+                const cy = part.y + GRID_SIZE / 2;
+                
+                // Calculate thickness (tapered towards tail)
+                const progress = i / snake.length;
+                const radius = Math.max(3, (GRID_SIZE / 2) * (1 - progress * 0.55));
+
+                ctx.beginPath();
+                ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw connecting body line between segments
+                if (i < snake.length - 1) {
+                    const nextPart = snake[i + 1];
+                    const ncx = nextPart.x + GRID_SIZE / 2;
+                    const ncy = nextPart.y + GRID_SIZE / 2;
+
+                    ctx.beginPath();
+                    ctx.moveTo(cx, cy);
+                    ctx.lineTo(ncx, ncy);
+                    ctx.lineWidth = radius * 1.8;
+                    ctx.stroke();
+                }
+            }
+
+            // Draw Snake Head (Eyes & Flickering Tongue)
+            const head = snake[0];
+            const hcx = head.x + GRID_SIZE / 2;
+            const hcy = head.y + GRID_SIZE / 2;
+
+            // Determine direction angle based on movement vector (dx, dy)
+            let angle = Math.atan2(dy, dx);
+
+            ctx.save();
+            ctx.translate(hcx, hcy);
+            ctx.rotate(angle);
+
+            // Head shape (oval)
+            ctx.beginPath();
+            ctx.ellipse(2, 0, GRID_SIZE / 1.8, GRID_SIZE / 2.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Eyes (Light green dots with pupils)
+            ctx.fillStyle = '#9bbc0f';
+            ctx.beginPath();
+            ctx.arc(2, -4, 2, 0, Math.PI * 2);
+            ctx.arc(2, 4, 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#0f380f';
+            ctx.beginPath();
+            ctx.arc(2.5, -4, 1, 0, Math.PI * 2);
+            ctx.arc(2.5, 4, 1, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Animated Flickering Forked Tongue
+            if (Math.floor(Date.now() / 150) % 2 === 0) {
+                ctx.strokeStyle = '#0f380f';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(8, 0);
+                ctx.lineTo(14, 0);
+                ctx.lineTo(17, -3);
+                ctx.moveTo(14, 0);
+                ctx.lineTo(17, 3);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+            ctx.restore();
+        }
+
+        function generateFood() {
+            let validPosition = false;
+            while (!validPosition) {
+                const foodX = Math.floor(Math.random() * (CANVAS_SIZE / GRID_SIZE)) * GRID_SIZE;
+                const foodY = Math.floor(Math.random() * (CANVAS_SIZE / GRID_SIZE)) * GRID_SIZE;
+
+                // Make sure food does not spawn on snake body
+                const onSnake = snake.some(segment => segment.x === foodX && segment.y === foodY);
+                if (!onSnake) {
+                    food = { x: foodX, y: foodY };
+                    validPosition = true;
+                }
+            }
+        }
+
+        function checkCollision() {
+            const head = snake[0];
+            const nextX = head.x + dx;
+            const nextY = head.y + dy;
+
+            // Wall Collision
+            if (nextX < 0 || nextX >= CANVAS_SIZE || nextY < 0 || nextY >= CANVAS_SIZE) {
+                return true;
+            }
+
+            // Self Collision
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // --- QUIZ SYSTEM ---
+        function triggerQuiz() {
+            if (availableQuestions.length === 0) {
+                // Refill pool if empty
+                availableQuestions = [...mathQuestions];
+            }
+
+            const qIndex = Math.floor(Math.random() * availableQuestions.length);
+            currentQuestion = availableQuestions.splice(qIndex, 1)[0];
+
+            document.getElementById('quiz-question').textContent = currentQuestion.q;
+            const optionsContainer = document.getElementById('quiz-options');
+            const feedbackEl = document.getElementById('quiz-feedback');
+            
+            // Clear previous elements and remove any focus or active state
+            optionsContainer.innerHTML = '';
+            feedbackEl.textContent = '';
+            feedbackEl.className = "text-center font-bold text-xs sm:text-sm h-5";
+
+            currentQuestion.options.forEach((option, idx) => {
+                const btn = document.createElement('button');
+                btn.type = "button";
+                btn.className = "w-full text-left bg-[#8bac0f] hover:bg-[#306230] hover:text-[#9bbc0f] text-[#0f380f] font-bold text-xs sm:text-base py-2 px-3 rounded border border-[#0f380f] transition touch-manipulation outline-none select-none";
+                btn.textContent = `${String.fromCharCode(65 + idx)}. ${option}`;
+                
+                // Ensure focus/active states don't linger across questions
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    // Disable all buttons in options to prevent double-clicking
+                    const allBtns = optionsContainer.querySelectorAll('button');
+                    allBtns.forEach(b => b.disabled = true);
+                    
+                    // Highlight selected button style temporarily
+                    btn.classList.remove('bg-[#8bac0f]', 'text-[#0f380f]');
+                    btn.classList.add('bg-[#0f380f]', 'text-[#9bbc0f]');
+                    
+                    handleAnswer(idx);
+                };
+                optionsContainer.appendChild(btn);
+            });
+
+            // Make sure focus is completely removed from buttons on load
+            if (document.activeElement) {
+                document.activeElement.blur();
+            }
+
+            quizModal.classList.remove('hidden');
+            quizModal.classList.add('flex');
+        }
+
+        function handleAnswer(selectedIndex) {
+            const feedbackEl = document.getElementById('quiz-feedback');
+
+            if (selectedIndex === currentQuestion.answer) {
+                feedbackEl.style.color = "#0f380f";
+                feedbackEl.textContent = "BENAR! Ular bertambah panjang!";
+                
+                score++;
+                questionsAnswered++;
+                scoreDisplay.textContent = `Soal: ${questionsAnswered}/10`;
+
+                // Add tail segment (snake grows)
+                const tail = { ...snake[snake.length - 1] };
+                snake.push(tail);
+
+                setTimeout(() => {
+                    quizModal.classList.add('hidden');
+                    quizModal.classList.remove('flex');
+
+                    if (questionsAnswered >= 10) {
+                        handleGameOver(true, "SELAMAT! Kamu berhasil menjawab 10 soal!");
+                    } else {
+                        generateFood();
+                        isPaused = false;
+                    }
+                }, 900);
+            } else {
+                feedbackEl.style.color = "#8b0000";
+                feedbackEl.textContent = "SALAH! Coba perhatikan lagi.";
+                
+                setTimeout(() => {
+                    quizModal.classList.add('hidden');
+                    quizModal.classList.remove('flex');
+                    generateFood();
+                    isPaused = false;
+                }, 1200);
+            }
+        }
+
+        // --- GAME OVER & LEADERBOARD ---
+        function handleGameOver(isWin, message) {
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+
+            const titleEl = document.getElementById('gameover-title');
+            const msgEl = document.getElementById('gameover-msg');
+            const statsEl = document.getElementById('gameover-stats');
+
+            if (isWin) {
+                titleEl.textContent = "KAMU MENANG! 🎉";
+                msgEl.textContent = message;
+                
+                // Save record to Leaderboard
+                saveRecord(playerName, secondsElapsed, gameSpeed);
+                renderLeaderboard();
+            } else {
+                titleEl.textContent = "GAME OVER 💀";
+                msgEl.textContent = message;
+            }
+
+            const mins = String(Math.floor(secondsElapsed / 60)).padStart(2, '0');
+            const secs = String(secondsElapsed % 60).padStart(2, '0');
+
+            statsEl.innerHTML = `
+                <div>Pemain: <b>${playerName}</b></div>
+                <div>Soal Selesai: <b>${questionsAnswered}/10</b></div>
+                <div>Total Waktu: <b>${mins}:${secs}</b></div>
+            `;
+
+            gameoverModal.classList.remove('hidden');
+            gameoverModal.classList.add('flex');
+        }
+
+        function saveRecord(name, timeInSeconds, speed) {
+            let speedTag = "Normal";
+            if (speed === 150) speedTag = "Santai";
+            if (speed === 60) speedTag = "Cepat";
+
+            const newRecord = {
+                name: name,
+                time: timeInSeconds,
+                speed: speedTag,
+                date: new Date().toLocaleDateString('id-ID')
+            };
+
+            leaderboard.push(newRecord);
+            // Sort by fastest time
+            leaderboard.sort((a, b) => a.time - b.time);
+            // Keep top 5
+            leaderboard = leaderboard.slice(0, 5);
+
+            localStorage.setItem('snake_math_leaderboard', JSON.stringify(leaderboard));
+        }
+
+        function loadLeaderboard() {
+            const data = localStorage.getItem('snake_math_leaderboard');
+            if (data) {
+                try {
+                    leaderboard = JSON.parse(data);
+                } catch (e) {
+                    leaderboard = [];
+                }
+            }
+        }
+
+        function renderLeaderboard() {
+            if (leaderboard.length === 0) {
+                leaderboardList.textContent = "Belum ada rekor.";
+                return;
+            }
+
+            leaderboardList.innerHTML = leaderboard.map((item, index) => {
+                const mins = String(Math.floor(item.time / 60)).padStart(2, '0');
+                const secs = String(item.time % 60).padStart(2, '0');
+                return `#${index + 1} ${item.name} - ${mins}:${secs} (${item.speed})`;
+            }).join(' | ');
+        }
+
+        function clearLeaderboard() {
+            leaderboard = [];
+            localStorage.removeItem('snake_math_leaderboard');
+            renderLeaderboard();
+        }
+
+        // --- KEYBOARD & CONTROLS ---
+        window.addEventListener('keydown', (e) => {
+            if (isPaused) return;
+
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    if (dy === 0) { dx = 0; dy = -GRID_SIZE; }
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    if (dy === 0) { dx = 0; dy = GRID_SIZE; }
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    if (dx === 0) { dx = -GRID_SIZE; dy = 0; }
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    if (dx === 0) { dx = GRID_SIZE; dy = 0; }
+                    break;
+            }
+        });
+
+        // Touch & Mouse D-Pad Listeners for PDI/Smart TV & Mobile
+        const bindDirectionBtn = (btnId, setDirection) => {
+            const btn = document.getElementById(btnId);
+            const trigger = (e) => {
+                e.preventDefault();
+                if (!isPaused) setDirection();
+            };
+            btn.addEventListener('click', trigger);
+            btn.addEventListener('touchstart', trigger, { passive: false });
+        };
+
+        bindDirectionBtn('btn-up', () => { if (dy === 0) { dx = 0; dy = -GRID_SIZE; } });
+        bindDirectionBtn('btn-down', () => { if (dy === 0) { dx = 0; dy = GRID_SIZE; } });
+        bindDirectionBtn('btn-left', () => { if (dx === 0) { dx = -GRID_SIZE; dy = 0; } });
+        bindDirectionBtn('btn-right', () => { if (dx === 0) { dx = GRID_SIZE; dy = 0; } });
+    </script>
+</body>
+</html>
